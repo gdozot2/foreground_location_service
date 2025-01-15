@@ -1,4 +1,4 @@
 # foreground_location_service
-Background location service in Android 13 with most updated libraries
+Background location service in Android 
 
-You can also explore easily more about this repo in this [post](https://link.medium.com/teJIu8DRQBb)
+The wrbsocket part is based on the following repo https://github.com/puskal-khadka/WebSocket-Kotlin-Demo/tree/main
