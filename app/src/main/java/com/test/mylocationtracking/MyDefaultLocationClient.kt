@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 class MyDefaultLocationClient(
     private val context: Context,
-    private val client: FusedLocationProviderClient
+    private val client: FusedLocationProviderClient,
 ) : MyLocationClient {
     @SuppressLint("MissingPermission")
     override fun getLocationUpdates(interval: Long): Flow<Location> {
@@ -36,7 +36,6 @@ class MyDefaultLocationClient(
             }
             val request = LocationRequest.Builder(interval)
                 .setMinUpdateDistanceMeters(0f)
-                .setIntervalMillis(1000L)
                 .setWaitForAccurateLocation(true)
                 .build()
             val locationCallback = object : LocationCallback() {

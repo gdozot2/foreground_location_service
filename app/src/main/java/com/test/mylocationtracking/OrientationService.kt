@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.LocationServices
-import com.test.mylocationtracking.interfaces.MyLocationClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,28 +15,29 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import okhttp3.WebSocket
+import kotlin.math.abs
 
-class LocationService: Service() {
+class OrientationService: Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private lateinit var  myLocationClient: MyLocationClient
-    private lateinit var webSocket: WebSocket
+    private lateinit var  myOrientationClient: MyDefaultOrientationClient
     private lateinit var webserviceServer: String
+    private lateinit var webSocket: WebSocket
     override fun onBind(p0: Intent?): IBinder? {
         return null
     }
 
     override fun onCreate() {
         super.onCreate()
-        myLocationClient = MyDefaultLocationClient(
+        myOrientationClient = MyDefaultOrientationClient(
             applicationContext,
-            LocationServices.getFusedLocationProviderClient(applicationContext)
+            LocationServices.getFusedOrientationProviderClient(applicationContext)
         )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when(intent?.action){
-            ACTION_START -> start()
-            ACTION_STOP -> stop()
+            ACTION_START_ORIENTATION -> start()
+            ACTION_STOP_ORIENTATION -> stop()
         }
         webserviceServer = intent?.extras?.getString("websocket").toString()
         webSocket = WebSocketUtils.webSocketConnection(webserviceServer) {}!!
@@ -46,24 +46,25 @@ class LocationService: Service() {
 
     private fun start(){
         val notification = NotificationCompat.Builder(this, "location")
-            .setContentTitle("Tracking Location")
-            .setContentText("Location: null")
+            .setContentTitle("Tracking Orientation")
             .setSmallIcon(R.drawable.ic_launcher_background)
             .setOngoing(true)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(1, notification.setContentText("He's alive").build())
-        myLocationClient.getLocationUpdates(10L)
-            .catch { e -> e.printStackTrace() }
-            .onEach {
-                val lat = it.latitude.toString()
-                val long = it.longitude.toString()
-                val updateNotification = notification.setContentText("Location: ($lat, $long)")
+        var currentHeadingDegrees = 0.0F
+        myOrientationClient.getOrientationUpdates(10L)
+            .catch { e ->
+                val updateNotification = notification.setContentText(e.printStackTrace().toString())
                 notificationManager.notify(1, updateNotification.build())
-                webSocket.send(Parser.parseLocation(it))
+            }
+            .onEach {
+                if (abs(currentHeadingDegrees - it.headingDegrees) > 0.1) {
+                    currentHeadingDegrees = it.headingDegrees
+                    webSocket.send(Parser.parseOrientation(it))
+                }
             }
             .launchIn(serviceScope)
 
-        startForeground(1, notification.build())
+        startForeground(2, notification.build())
     }
 
     private fun stop(){
@@ -77,7 +78,7 @@ class LocationService: Service() {
     }
 
     companion object{
-        const val ACTION_START = "ACTION_START"
-        const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_START_ORIENTATION = "ACTION_START_ORIENTATION"
+        const val ACTION_STOP_ORIENTATION = "ACTION_STOP_ORIENTATION"
     }
 }
